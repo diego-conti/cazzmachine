@@ -37,7 +37,7 @@ export function Summary() {
             setIsDoneWorking(false);
             setView("idle");
           }}
-          className="px-3 py-1.5 border border-cazz-border text-[10px] font-mono text-cazz-muted hover:text-cazz-accent hover:border-cazz-accent transition-all uppercase"
+          className="px-3 py-1.5 border border-cazz-border text-[8px] md:text-[10px] font-mono text-cazz-muted hover:text-cazz-accent hover:border-cazz-accent transition-all uppercase whitespace-nowrap overflow-hidden text-ellipsis max-w-[120px]"
         >
           [ EXIT_SESSION ]
         </button>
@@ -80,7 +80,7 @@ export function Summary() {
 
       <button
         onClick={handleViewAll}
-        className="w-full py-4 bg-cazz-surface border-2 border-cazz-accent/40 font-mono text-xs font-bold text-cazz-accent hover:bg-cazz-accent hover:text-white uppercase tracking-[0.2em] transition-all"
+        className="w-full py-4 bg-cazz-surface border-2 border-cazz-accent/40 font-mono text-[10px] md:text-xs font-bold text-cazz-accent hover:bg-cazz-accent hover:text-white uppercase tracking-[0.2em] transition-all"
       >
         [ EXECUTE_VIEW_FULL_DATADUMP ]
       </button>

@@ -24,7 +24,7 @@ export function DetailView() {
             setIsDoneWorking(false);
             setView("idle");
           }}
-          className="px-2 py-1 border border-cazz-border text-[10px] font-mono text-cazz-muted hover:text-cazz-accent hover:border-cazz-accent transition-all uppercase"
+          className="px-2 py-1 border border-cazz-border text-[8px] md:text-[10px] font-mono text-cazz-muted hover:text-cazz-accent hover:border-cazz-accent transition-all uppercase whitespace-nowrap"
         >
           [ ESC_TERMINAL ]
         </button>
