@@ -40,7 +40,7 @@ The app consists of two main parts:
 Clone the repository:
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/cazzmachine.git
+git clone https://github.com/diego-conti/cazzmachine.git
 cd cazzmachine
 ```
 
@@ -106,6 +106,27 @@ Output:
 - **Installer**: `src-tauri/target/release/bundle/msi/*.msi`
 - **Executable**: `src-tauri/target/release/cazzmachine.exe`
 
+### Android
+
+Prerequisites:
+- **Android Studio** with SDK, NDK, and Command-line Tools installed
+- Or install SDK manually: https://developer.android.com/studio#command-line-tools
+
+Build from source:
+
+```bash
+export ANDROID_HOME=$HOME/Android/Sdk
+export NDK_HOME=$ANDROID_HOME/ndk/26.1.10909125
+npm run tauri android build
+```
+
+To install on your device:
+
+```bash
+# Enable "Install from unknown sources" in Android settings
+adb install path/to/cazzmachine-signed.apk
+```
+
 ## Project Structure
 
 ```
@@ -133,6 +154,7 @@ The app stores data in:
 - **Linux**: `~/.local/share/com.cazzmachine.app/`
 - **macOS**: `~/Library/Application Support/com.cazzmachine.app/`
 - **Windows**: `%APPDATA%/com.cazzmachine.app/`
+- **Android**: Internal storage at `/data/data/com.cazzmachine.app/`
 
 Database file: `cazzmachine.db`
 
