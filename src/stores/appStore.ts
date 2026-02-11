@@ -167,9 +167,10 @@ export const useAppStore = create<AppState>((set, get) => ({
         const { setToastMessage, fetchStats } = get();
         await fetchStats();
 
+        // Format thread notification
         const msg = generatePhaseEndToast(result);
         if (msg) {
-          setToastMessage(`[Thread ${threadNum}/${threadCount}] ${msg}`);
+          setToastMessage(`[cazz_thread ${threadNum}] ${msg}`);
           setTimeout(() => setToastMessage(null), 5000);
         }
 

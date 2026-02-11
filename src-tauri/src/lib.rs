@@ -28,6 +28,13 @@ pub fn run() {
 
             app.manage(database.clone());
 
+            // Send startup notification after 2 seconds
+            let startup_handle = app.handle().clone();
+            tauri::async_runtime::spawn(async move {
+                tokio::time::sleep(std::time::Duration::from_secs(2)).await;
+                let _ = tauri::Emitter::emit(&startup_handle, "cazz-notification", "Cazzmachine ready. Go back to work; I've got your doomscrolling covered");
+            });
+
             let crawler_db = database.clone();
             let crawler_shutdown = shutdown_rx.clone();
             let notif_db = database.clone();

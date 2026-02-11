@@ -8,11 +8,11 @@ And click. And click again.
 Suddenly your work day is over, and all you have done is browsing with glazed eyes through unfunny jokes, half-heartedly smiling at animal videos of dubiously authentic nature, and gaining an unsavoury expertise on the unsavoury secrets of some lesser celebrity. 
 Meanwhile, work to do piles higher and higher. You know that tomorrow it will be there, waiting for you. And again you will ignore it, forever doomed to doomscrolling, until the inevitable deadline hits you in the neck.
 
-If only the curse of ungainly curiosity could be lifted. If only someone - something - could bear the burden of cat videos and dank memes - the internet *cazzeggio*, as Alighieri's wittier descendants aptly call it - in your place. If only there were a Cazzmachine.
+If only the curse of curiosity could be lifted. If only someone - something - could bear the burden of cat videos and dank memes - the internet *cazzeggio*, as Alighieri's wittier descendants aptly call it - in your place. If only there were a Cazzmachine.
 
 But now, my friend, there is. 
 
-Let the browser icon lie neglected - let the Cazzmachine toil! And as you steadfastly dive deep into your work, let the Cazzmachine dive with equal depth and resolve in the most obscure of reddit's nooks, with nothing to disturb your concentration, now that every humourous gem is meticulously catalogued and stored for you to - possibly, though not advisedly - view later. And should you feel tempted to take a break, leave that browser icon alone - just turn the doomscrolling knob to the *top cazz* setting, and let the Cazzmachine take care of it!
+Let the browser icon lie neglected - let the Cazzmachine toil! And as you steadfastly dive deep into your work, let the Cazzmachine dive with equal depth and resolve in the most obscure of Reddit's nooks, with nothing to disturb your concentration, now that every humourous gem is meticulously catalogued and stored for you to - possibly, though not advisedly - view later. And should you feel tempted to take a break, leave that browser icon alone - just turn the doomscrolling knob to the *top cazz* setting, and let the Cazzmachine take care of it!
 
 No longer will you be unproductive. No longer will you waste hours consuming machine-generated drivel, in mindless *cazzeggio*.
 
@@ -37,7 +37,7 @@ For now comes the era of the Cazzmachine.
 <p align="center">
 <img src="public/screenshot-main.png" width="700" alt="Main interface with doomscrolling controls"/>
 <br>
-<em>The main interface: adjust your doomscrolling intensity (1-9) and parallel thread count (1-8)</em>
+<em>The main interface: adjust your doomscrolling intensity with the throttle knob (1-9) and set parallel thread count (1-8) with the heat map selector</em>
 </p>
 
 ## Architecture
@@ -219,7 +219,8 @@ Set 1-8 parallel "doomscrolling threads" to multiply your consumption power:
 
 - Each thread triggers independent consumption with staggered durations
 - Buffer size scales automatically (20 items × thread count)
-- Perfect for when you need to really check out from work
+- Heat map style thread selector with color-coded intensity levels
+- Perfect for maximum automated doomscrolling
 
 ## License
 

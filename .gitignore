@@ -37,3 +37,5 @@ coverage/
 # Tauri
 src-tauri/gen/android/
 src-tauri/gen/ios/
+.sisyphus/
+bun.lock

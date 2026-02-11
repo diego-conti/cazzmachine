@@ -1,7 +1,7 @@
 import { useAppStore } from "../stores/appStore";
 import { useCrawlStats } from "../hooks/useCrawlStats";
 import { ThrottleKnob } from "./ThrottleKnob";
-import { ThreadSlider } from "./ThreadSlider";
+import { ThreadSlider, getHeatColor } from "./ThreadSlider";
 
 const categoryEmojis: Record<string, string> = {
   meme: "🖼️",
@@ -44,61 +44,72 @@ export function IdleView() {
         </p>
       </div>
 
-      {stats && stats.total_items > 0 && (
-        <div className="bg-cazz-surface/80 border border-cazz-border rounded-xl p-4 w-full max-w-sm backdrop-blur-sm">
-          <div className="space-y-1">
-            {stats.memes_found > 0 && (
-              <div className="grid grid-cols-[3rem_1.5rem_1fr_4rem] gap-2 text-[11px] font-mono items-center">
-                <span className="text-cazz-text text-right">{stats.memes_found.toString().padStart(3, '0')}</span>
-                <span className="text-center">{categoryEmojis.meme}</span>
-                <span className="text-cazz-muted uppercase">MEME_LOG</span>
-                <span className="text-cazz-muted/60 text-right">-{Math.round(stats.memes_found * 0.5)}m</span>
-              </div>
-            )}
-            {stats.jokes_found > 0 && (
-              <div className="grid grid-cols-[3rem_1.5rem_1fr_4rem] gap-2 text-[11px] font-mono items-center">
-                <span className="text-cazz-text text-right">{stats.jokes_found.toString().padStart(3, '0')}</span>
-                <span className="text-center">{categoryEmojis.joke}</span>
-                <span className="text-cazz-muted uppercase">JOKE_BUFFER</span>
-                <span className="text-cazz-muted/60 text-right">-{Math.round(stats.jokes_found * 0.3)}m</span>
-              </div>
-            )}
-            {stats.news_checked > 0 && (
-              <div className="grid grid-cols-[3rem_1.5rem_1fr_4rem] gap-2 text-[11px] font-mono items-center">
-                <span className="text-cazz-text text-right">{stats.news_checked.toString().padStart(3, '0')}</span>
-                <span className="text-center">{categoryEmojis.news}</span>
-                <span className="text-cazz-muted uppercase">NEWS_FEED</span>
-                <span className="text-cazz-muted/60 text-right">-{Math.round(stats.news_checked * 2)}m</span>
-              </div>
-            )}
-            {stats.videos_found > 0 && (
-              <div className="grid grid-cols-[3rem_1.5rem_1fr_4rem] gap-2 text-[11px] font-mono items-center">
-                <span className="text-cazz-text text-right">{stats.videos_found.toString().padStart(3, '0')}</span>
-                <span className="text-center">{categoryEmojis.video}</span>
-                <span className="text-cazz-muted uppercase">VIDEO_STREAM</span>
-                <span className="text-cazz-muted/60 text-right">-{Math.round(stats.videos_found * 3)}m</span>
-              </div>
-            )}
-            {stats.gossip_found > 0 && (
-              <div className="grid grid-cols-[3rem_1.5rem_1fr_4rem] gap-2 text-[11px] font-mono items-center">
-                <span className="text-cazz-text text-right">{stats.gossip_found.toString().padStart(3, '0')}</span>
-                <span className="text-center">{categoryEmojis.gossip}</span>
-                <span className="text-cazz-muted uppercase">GOSSIP_DUMP</span>
-                <span className="text-cazz-muted/60 text-right">-{Math.round(stats.gossip_found * 1.5)}m</span>
-              </div>
-            )}
-            <div
-              onClick={handleToggleStatus}
-              className="mt-3 pt-3 border-t border-cazz-border/50 flex justify-between items-center text-[10px] font-mono uppercase cursor-pointer hover:bg-cazz-card/50 transition-colors px-2 -mx-2 rounded"
-            >
-              <span className={systemStatus === "doomscrolling" ? "text-cazz-accent animate-pulse" : systemStatus === "interrupted" ? "text-red-500" : "text-cazz-muted"}>
-                System Status: {systemStatus === "doomscrolling" ? `doomscrolling with ${threadCount} thread${threadCount > 1 ? 's' : ''}...` : systemStatus === "interrupted" ? "interrupted" : `standby (${threadCount} thread${threadCount > 1 ? 's' : ''} ready)`}
-              </span>
-              <span className="text-cazz-muted/60">Saved: {Math.round(stats.estimated_time_saved_minutes)}m</span>
+      {/* Status box - always visible */}
+      <div className="bg-cazz-surface/80 border border-cazz-border rounded-xl p-4 w-full max-w-sm backdrop-blur-sm">
+        <div className="space-y-1">
+          {/* Item counts - only show when > 0 */}
+          {stats && stats.memes_found > 0 && (
+            <div className="grid grid-cols-[3rem_1.5rem_1fr_4rem] gap-2 text-[11px] font-mono items-center">
+              <span className="text-cazz-text text-right">{stats.memes_found.toString().padStart(3, '0')}</span>
+              <span className="text-center">{categoryEmojis.meme}</span>
+              <span className="text-cazz-muted uppercase">MEME_LOG</span>
+              <span className="text-cazz-muted/60 text-right">-{Math.round(stats.memes_found * 0.5)}m</span>
             </div>
+          )}
+          {stats && stats.jokes_found > 0 && (
+            <div className="grid grid-cols-[3rem_1.5rem_1fr_4rem] gap-2 text-[11px] font-mono items-center">
+              <span className="text-cazz-text text-right">{stats.jokes_found.toString().padStart(3, '0')}</span>
+              <span className="text-center">{categoryEmojis.joke}</span>
+              <span className="text-cazz-muted uppercase">JOKE_BUFFER</span>
+              <span className="text-cazz-muted/60 text-right">-{Math.round(stats.jokes_found * 0.3)}m</span>
+            </div>
+          )}
+          {stats && stats.news_checked > 0 && (
+            <div className="grid grid-cols-[3rem_1.5rem_1fr_4rem] gap-2 text-[11px] font-mono items-center">
+              <span className="text-cazz-text text-right">{stats.news_checked.toString().padStart(3, '0')}</span>
+              <span className="text-center">{categoryEmojis.news}</span>
+              <span className="text-cazz-muted uppercase">NEWS_FEED</span>
+              <span className="text-cazz-muted/60 text-right">-{Math.round(stats.news_checked * 2)}m</span>
+            </div>
+          )}
+          {stats && stats.videos_found > 0 && (
+            <div className="grid grid-cols-[3rem_1.5rem_1fr_4rem] gap-2 text-[11px] font-mono items-center">
+              <span className="text-cazz-text text-right">{stats.videos_found.toString().padStart(3, '0')}</span>
+              <span className="text-center">{categoryEmojis.video}</span>
+              <span className="text-cazz-muted uppercase">VIDEO_STREAM</span>
+              <span className="text-cazz-muted/60 text-right">-{Math.round(stats.videos_found * 3)}m</span>
+            </div>
+          )}
+          {stats && stats.gossip_found > 0 && (
+            <div className="grid grid-cols-[3rem_1.5rem_1fr_4rem] gap-2 text-[11px] font-mono items-center">
+              <span className="text-cazz-text text-right">{stats.gossip_found.toString().padStart(3, '0')}</span>
+              <span className="text-center">{categoryEmojis.gossip}</span>
+              <span className="text-cazz-muted uppercase">GOSSIP_DUMP</span>
+              <span className="text-cazz-muted/60 text-right">-{Math.round(stats.gossip_found * 1.5)}m</span>
+            </div>
+          )}
+          {/* System Status - always visible */}
+          <div
+            onClick={handleToggleStatus}
+            className="mt-3 pt-3 border-t border-cazz-border/50 flex justify-between items-center text-[10px] font-mono uppercase cursor-pointer hover:bg-cazz-card/50 transition-colors px-2 -mx-2 rounded"
+          >
+            <span className={systemStatus === "doomscrolling" ? "text-cazz-accent animate-pulse" : systemStatus === "interrupted" ? "text-red-500" : "text-cazz-muted"}>
+              System Status: {systemStatus === "doomscrolling" ? (
+                threadCount === 1 ? (
+                  "Doomscrolling at single cazz"
+                ) : threadCount === 8 ? (
+                  <span>Doomscrolling at <span style={{ color: getHeatColor(8) }}>full cazz</span></span>
+                ) : (
+                  <span>Doomscrolling at <span style={{ color: getHeatColor(threadCount) }}>{threadCount}x cazz</span></span>
+                )
+              ) : systemStatus === "interrupted" ? "interrupted" : "standby"}
+            </span>
+            {stats && (
+              <span className="text-cazz-muted/60">Saved: {Math.round(stats.estimated_time_saved_minutes)}m</span>
+            )}
           </div>
         </div>
-      )}
+      </div>
 
       <div className="flex flex-col items-center gap-3 w-full max-w-sm">
         <span className="text-[10px] font-mono text-cazz-muted uppercase tracking-[0.3em]">Controls</span>
