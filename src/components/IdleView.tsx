@@ -1,6 +1,7 @@
 import { useAppStore } from "../stores/appStore";
 import { useCrawlStats } from "../hooks/useCrawlStats";
 import { ThrottleKnob } from "./ThrottleKnob";
+import { ThreadSlider } from "./ThreadSlider";
 
 const categoryEmojis: Record<string, string> = {
   meme: "🖼️",
@@ -15,6 +16,8 @@ export function IdleView() {
   const peekItems = useAppStore((s) => s.peekItems);
   const stats = useCrawlStats();
   const systemStatus = useAppStore((s) => s.systemStatus);
+  const threadCount = useAppStore((s) => s.threadCount);
+  const setThreadCount = useAppStore((s) => s.setThreadCount);
   const toggleSystemStatus = useAppStore((s) => s.toggleSystemStatus);
 
   const handleViewDetail = () => {
@@ -42,7 +45,7 @@ export function IdleView() {
       </div>
 
       {stats && stats.total_items > 0 && (
-        <div className="bg-cazz-surface border-2 border-dashed border-cazz-border rounded-xl p-4 w-full max-w-sm">
+        <div className="bg-cazz-surface/80 border border-cazz-border rounded-xl p-4 w-full max-w-sm backdrop-blur-sm">
           <div className="space-y-1">
             {stats.memes_found > 0 && (
               <div className="grid grid-cols-[3rem_1.5rem_1fr_4rem] gap-2 text-[11px] font-mono items-center">
@@ -86,10 +89,10 @@ export function IdleView() {
             )}
             <div
               onClick={handleToggleStatus}
-              className="mt-3 pt-3 border-t border-dashed border-cazz-border flex justify-between items-center text-[10px] font-mono uppercase cursor-pointer hover:bg-cazz-card/50 transition-colors px-2 -mx-2 rounded"
+              className="mt-3 pt-3 border-t border-cazz-border/50 flex justify-between items-center text-[10px] font-mono uppercase cursor-pointer hover:bg-cazz-card/50 transition-colors px-2 -mx-2 rounded"
             >
               <span className={systemStatus === "doomscrolling" ? "text-cazz-accent animate-pulse" : systemStatus === "interrupted" ? "text-red-500" : "text-cazz-muted"}>
-                System Status: {systemStatus === "doomscrolling" ? "doomscrolling..." : systemStatus === "interrupted" ? "interrupted" : "standby"}
+                System Status: {systemStatus === "doomscrolling" ? `doomscrolling with ${threadCount} thread${threadCount > 1 ? 's' : ''}...` : systemStatus === "interrupted" ? "interrupted" : `standby (${threadCount} thread${threadCount > 1 ? 's' : ''} ready)`}
               </span>
               <span className="text-cazz-muted/60">Saved: {Math.round(stats.estimated_time_saved_minutes)}m</span>
             </div>
@@ -97,11 +100,20 @@ export function IdleView() {
         </div>
       )}
 
-      <div className="flex flex-col items-center gap-1">
-        <span className="text-sm font-mono font-bold uppercase tracking-[0.25em] text-cazz-text">
-          Doomscroll Level
-        </span>
-        <ThrottleKnob />
+      <div className="flex flex-col items-center gap-3 w-full max-w-sm">
+        <span className="text-[10px] font-mono text-cazz-muted uppercase tracking-[0.3em]">Controls</span>
+        <div className="flex flex-row items-center justify-between bg-cazz-card/30 border border-cazz-border/50 rounded-xl px-6 pt-8 pb-8 w-full">
+          <div className="flex flex-col items-center px-8">
+            <ThrottleKnob />
+          </div>
+          <div className="flex flex-col items-center px-4">
+            <ThreadSlider
+              value={threadCount}
+              onChange={setThreadCount}
+              disabled={systemStatus === "doomscrolling"}
+            />
+          </div>
+        </div>
       </div>
 
       <div className="flex flex-col items-center gap-4 w-full max-w-sm">

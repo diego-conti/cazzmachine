@@ -20,10 +20,15 @@ impl NotificationEngine {
 
     fn get_notify_interval(&self) -> Duration {
         let level = THROTTLE_LEVEL.load(std::sync::atomic::Ordering::Relaxed);
-        // Level 10: 5 min, Level 1: 60 min
-        // Formula: 60 - (level-1)*6 = 60 at level 1, 6 at level 10 (capped at 5)
-        let minutes = 60 - ((level as u64 - 1) * 6);
-        Duration::from_secs(minutes.max(5) * 60)
+        // Formulas for linear active% from 2% to 91%:
+        // S(level) = 1 + 4 × (level-1)/9          (scroll: 1→5 min)
+        // A(level) = 0.02 + 0.89 × (level-1)/9   (active%: 2%→91%)
+        // W(level) = S × ((1/A) - 1)             (standby: convex curve)
+        let level_f = level as f64;
+        let scroll_minutes = 1.0 + 4.0 * ((level_f - 1.0) / 9.0);
+        let active_pct = 0.02 + 0.89 * ((level_f - 1.0) / 9.0);
+        let standby_minutes = scroll_minutes * ((1.0 / active_pct) - 1.0);
+        Duration::from_secs((standby_minutes * 60.0) as u64)
     }
 
     pub async fn run(&self, app_handle: tauri::AppHandle) {

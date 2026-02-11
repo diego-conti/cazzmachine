@@ -2,7 +2,7 @@ use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::watch;
 
-use crate::commands::{THROTTLE_LEVEL};
+use crate::commands::{THROTTLE_LEVEL, THREAD_COUNT};
 use crate::db::Database;
 use super::provider::ContentProvider;
 use super::{reddit, dadjoke, meme, video, gossip, news};
@@ -42,16 +42,16 @@ impl CrawlScheduler {
 
     fn get_crawl_interval(&self) -> Duration {
         let level = THROTTLE_LEVEL.load(std::sync::atomic::Ordering::Relaxed);
-        // Level 10: 2 min, Level 1: 15 min
-        // Linear: 15 - (level-1)*1.44 = roughly 2 at level 10, 15 at level 1
-        let minutes = 15 - (level as u64 - 1) * 1;
+        // Level 9: 2 min, Level 1: 15 min
+        // Linear: 15 - (level-1)*13/8 = roughly 2 at level 9, 15 at level 1
+        let minutes = 15 - ((level as u64 - 1) * 13) / 8;
         Duration::from_secs(minutes * 60)
     }
 
     fn get_providers_per_cycle(&self) -> usize {
         let level = THROTTLE_LEVEL.load(std::sync::atomic::Ordering::Relaxed);
-        // Level 10: 3 providers, Level 1: 1 provider
-        let count = 1 + ((level as usize - 1) * 2) / 9;
+        // Level 9: 3 providers, Level 1: 1 provider
+        let count = 1 + ((level as usize - 1) * 2) / 8;
         count.min(self.providers.len())
     }
 
@@ -62,12 +62,15 @@ impl CrawlScheduler {
 
         loop {
             // Crawl when buffer is low (below threshold) to maintain healthy supply
+            let thread_count = THREAD_COUNT.load(std::sync::atomic::Ordering::Relaxed);
+            let target_buffer = (20 * thread_count) as i64;
             match self.db.get_pending_count() {
-                Ok(n) if n < 20 => {
+                Ok(n) if n < target_buffer => {
+                    log::info!("Buffer has {} items, target is {} ({} threads) - crawling", n, target_buffer, thread_count);
                     self.crawl_cycle().await;
                 }
                 Ok(pending) => {
-                    log::info!("Buffer has {} unconsumed items - skipping crawl to save bandwidth", pending);
+                    log::info!("Buffer has {} unconsumed items (target: {}) - skipping crawl to save bandwidth", pending, target_buffer);
                 }
                 Err(e) => {
                     log::warn!("Failed to check pending count: {}", e);

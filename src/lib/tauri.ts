@@ -1,4 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
+import { open } from "@tauri-apps/plugin-shell";
 
 export interface CrawlItem {
   id: string;
@@ -69,8 +70,34 @@ export async function markItemSeen(itemId: string): Promise<void> {
   return invoke<void>("mark_item_seen", { itemId });
 }
 
+declare global {
+  interface Window {
+    Tauri?: any;
+  }
+}
+
 export async function openUrl(url: string): Promise<void> {
-  return invoke<void>("open_url", { url });
+  try {
+    await open(url);
+  } catch (e) {
+    console.error("Failed to open URL with shell plugin:", e);
+    
+    if (typeof window !== 'undefined' && window.Tauri) {
+      try {
+        await window.Tauri.invoke('open_url', { url });
+      } catch (backendError) {
+        console.error("Failed to open URL with backend command:", backendError);
+        
+        if (url.startsWith('http')) {
+          window.open(url, '_blank');
+        }
+      }
+    } else {
+      if (url.startsWith('http')) {
+        window.open(url, '_blank');
+      }
+    }
+  }
 }
 
 export async function getThrottleLevel(): Promise<number> {
@@ -79,6 +106,18 @@ export async function getThrottleLevel(): Promise<number> {
 
 export async function setThrottleLevel(level: number): Promise<void> {
   return invoke<void>("set_throttle_level", { level });
+}
+
+export async function getConsumptionThreads(): Promise<number> {
+  return invoke<number>("get_consumption_threads");
+}
+
+export async function setConsumptionThreads(count: number): Promise<void> {
+  return invoke<void>("set_consumption_threads", { count });
+}
+
+export async function getPendingCount(): Promise<number> {
+  return invoke<number>("get_pending_count");
 }
 
 export async function consumePendingItems(budgetMinutes: number): Promise<ConsumeResult> {

@@ -6,6 +6,7 @@ import {
   getTodayStats,
   getDailySummary,
   setThrottleLevel as apiSetThrottleLevel,
+  setConsumptionThreads as apiSetConsumptionThreads,
   consumePendingItems,
   pruneOldItems,
 } from "../lib/tauri";
@@ -13,7 +14,20 @@ import {
 type View = "idle" | "summary" | "detail";
 
 function getDoomscrollDurationMs(level: number): number {
-  return (60 + ((level - 1) / 9) * 240) * 1000;
+  // Scroll duration: 1→5 min linearly
+  // Formula: S(level) = 1 + 4 × (level-1)/9
+  const scrollMinutes = 1 + 4 * ((level - 1) / 8);
+  return scrollMinutes * 60 * 1000;
+}
+
+function getThreadDurations(budgetMs: number, threadCount: number): number[] {
+  if (threadCount === 1) return [budgetMs];
+  const half = budgetMs / 2;
+  const durations: number[] = [];
+  for (let i = 0; i < threadCount; i++) {
+    durations.push(half + (i * half) / (threadCount - 1));
+  }
+  return durations;
 }
 
 function generatePhaseEndToast(r: ConsumeResult): string {
@@ -54,6 +68,7 @@ interface AppState {
   isDoneWorking: boolean;
   hoveredItem: CrawlItem | null;
   throttleLevel: number;
+  threadCount: number;
   systemStatus: "standby" | "doomscrolling" | "interrupted";
   statusTimer: NodeJS.Timeout | null;
   interruptedTimer: NodeJS.Timeout | null;
@@ -65,6 +80,7 @@ interface AppState {
   setIsDoneWorking: (done: boolean) => void;
   setHoveredItem: (item: CrawlItem | null) => void;
   setThrottleLevel: (level: number) => void;
+  setThreadCount: (count: number) => void;
   hoverTimeout: NodeJS.Timeout | null;
   setHoverTimeout: (timeout: NodeJS.Timeout | null) => void;
   clearHoverTimeout: () => void;
@@ -77,6 +93,7 @@ interface AppState {
   clearStatusTimer: () => void;
   clearInterruptedTimer: () => void;
   startDoomscrollingCycle: () => void;
+  _launchConsumptionThreads: () => void;
 }
 
 const getTodayKey = () => new Date().toISOString().split('T')[0];
@@ -94,37 +111,18 @@ export const useAppStore = create<AppState>((set, get) => ({
   isDoneWorking: false,
   hoveredItem: null,
   throttleLevel: 5,
+  threadCount: 1,
   hoverTimeout: null,
   systemStatus: "standby",
   statusTimer: null,
   interruptedTimer: null,
 
   toggleSystemStatus: () => {
-    const { systemStatus, clearStatusTimer, clearInterruptedTimer, throttleLevel } = get();
+    const { systemStatus, clearStatusTimer, clearInterruptedTimer } = get();
 
     if (systemStatus === "standby") {
       clearInterruptedTimer();
-      set({ systemStatus: "doomscrolling" });
-
-      const duration = getDoomscrollDurationMs(throttleLevel);
-      const budgetMinutes = duration / 60000;
-      const timer = setTimeout(async () => {
-        const { setToastMessage, fetchStats, clearStatusTimer } = get();
-        clearStatusTimer();
-
-        const result = await consumePendingItems(budgetMinutes);
-        await fetchStats();
-
-        const msg = generatePhaseEndToast(result);
-        if (msg) {
-          setToastMessage(msg);
-          setTimeout(() => setToastMessage(null), 8000);
-        }
-
-        set({ systemStatus: "standby", statusTimer: null });
-      }, duration);
-
-      set({ statusTimer: timer });
+      get()._launchConsumptionThreads();
     } else if (systemStatus === "doomscrolling") {
       clearStatusTimer();
       set({ systemStatus: "interrupted", statusTimer: null });
@@ -140,38 +138,60 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
 
   startDoomscrollingCycle: () => {
-    const { systemStatus, statusTimer, clearInterruptedTimer, throttleLevel } = get();
+    const { systemStatus, statusTimer, clearInterruptedTimer } = get();
 
     if (systemStatus === "standby" && !statusTimer) {
       clearInterruptedTimer();
-      set({ systemStatus: "doomscrolling" });
+      get()._launchConsumptionThreads();
+    }
+  },
 
-      const duration = getDoomscrollDurationMs(throttleLevel);
-      const budgetMinutes = duration / 60000;
-      const timer = setTimeout(async () => {
-        const { setToastMessage, fetchStats, clearStatusTimer } = get();
-        clearStatusTimer();
+  _launchConsumptionThreads: () => {
+    const { throttleLevel, threadCount } = get();
+    set({ systemStatus: "doomscrolling" });
 
-        const result = await consumePendingItems(budgetMinutes);
+    const durationMs = getDoomscrollDurationMs(throttleLevel);
+    const threadDurations = getThreadDurations(durationMs, threadCount);
+    let completed = 0;
+    const timerIds: NodeJS.Timeout[] = [];
+
+    for (let t = 0; t < threadDurations.length; t++) {
+      const threadDurationMs = threadDurations[t];
+      const threadNum = t + 1;
+      const threadBudget = threadDurationMs / 60000;
+
+      const timerId = setTimeout(async () => {
+        const result = await consumePendingItems(threadBudget);
+        completed++;
+
+        const { setToastMessage, fetchStats } = get();
         await fetchStats();
 
         const msg = generatePhaseEndToast(result);
         if (msg) {
-          setToastMessage(msg);
-          setTimeout(() => setToastMessage(null), 8000);
+          setToastMessage(`[Thread ${threadNum}/${threadCount}] ${msg}`);
+          setTimeout(() => setToastMessage(null), 5000);
         }
 
-        set({ systemStatus: "standby", statusTimer: null });
-      }, duration);
+        if (completed >= threadCount) {
+          set({ systemStatus: "standby", statusTimer: null });
+        }
+      }, threadDurationMs);
 
-      set({ statusTimer: timer });
+      timerIds.push(timerId);
     }
+
+    set({ statusTimer: timerIds as any });
   },
 
   clearStatusTimer: () => {
     const { statusTimer } = get();
     if (statusTimer) {
-      clearTimeout(statusTimer);
+      if (Array.isArray(statusTimer)) {
+        statusTimer.forEach((t) => clearTimeout(t));
+      } else {
+        clearTimeout(statusTimer);
+      }
       set({ statusTimer: null });
     }
   },
@@ -199,9 +219,15 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
 
   setThrottleLevel: async (level: number) => {
-    const clamped = Math.max(1, Math.min(10, level));
+    const clamped = Math.max(1, Math.min(9, level));
     set({ throttleLevel: clamped });
     await apiSetThrottleLevel(clamped);
+  },
+
+  setThreadCount: async (count: number) => {
+    const clamped = Math.max(1, Math.min(8, count));
+    set({ threadCount: clamped });
+    await apiSetConsumptionThreads(clamped);
   },
 
   setView: (view) => set({ view }),

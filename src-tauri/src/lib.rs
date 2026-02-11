@@ -64,6 +64,9 @@ pub fn run() {
             commands::open_url,
             commands::get_throttle_level,
             commands::set_throttle_level,
+            commands::get_consumption_threads,
+            commands::set_consumption_threads,
+            commands::get_pending_count,
             commands::prune_old_items,
         ])
         .run(tauri::generate_context!())
