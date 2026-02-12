@@ -3,6 +3,10 @@ mod crawler;
 mod db;
 mod notifications;
 mod summary;
+mod shared;
+
+#[cfg(target_os = "android")]
+mod android;
 
 use std::sync::Arc;
 use tauri::Manager;
@@ -47,11 +51,47 @@ pub fn run() {
                 scheduler.run().await;
             });
 
-            tauri::async_runtime::spawn(async move {
-                let engine =
-                    notifications::NotificationEngine::new(notif_db, notif_shutdown);
-                engine.run(app_handle).await;
-            });
+            #[cfg(target_os = "android")]
+            {
+                let bg_db = database.clone();
+                let bg_shutdown = shutdown_rx.clone();
+                let bg_handle = app.handle().clone();
+
+                tauri::async_runtime::spawn(async move {
+                    let service = android::background_service::AndroidBackgroundService::new(bg_db, bg_shutdown);
+                    service.run().await;
+                });
+
+                // Listen for app lifecycle events
+                let handle = app.handle().clone();
+                app.listen_global("resume", move |_event| {
+                    let h = handle.clone();
+                    tauri::async_runtime::spawn(async move {
+                        let _ = tauri::Emitter::emit(&h, "cazz-notification", "App resumed");
+                    });
+                });
+            }
+
+            #[cfg(target_os = "android")]
+            {
+                let bg_db = database.clone();
+                let bg_shutdown = shutdown_rx.clone();
+                let bg_handle = app.handle().clone();
+
+                tauri::async_runtime::spawn(async move {
+                    let service = android::background_service::AndroidBackgroundService::new(bg_db, bg_shutdown);
+                    service.run().await;
+                });
+
+                // Listen for app lifecycle events
+                let handle = app.handle().clone();
+                app.listen_global("resume", move |_event| {
+                    let h = handle.clone();
+                    tauri::async_runtime::spawn(async move {
+                        let _ = tauri::Emitter::emit(&h, "cazz-notification", "App resumed");
+                    });
+                });
+            }
 
             Ok(())
         })
@@ -75,6 +115,12 @@ pub fn run() {
             commands::set_consumption_threads,
             commands::get_pending_count,
             commands::prune_old_items,
+            commands::get_last_active_timestamp,
+            commands::set_last_active_timestamp,
+            #[cfg(target_os = "android")]
+            android::on_android_app_background,
+            #[cfg(target_os = "android")]
+            android::on_android_app_foreground,
         ])
         .run(tauri::generate_context!())
         .expect("error while running cazzmachine");

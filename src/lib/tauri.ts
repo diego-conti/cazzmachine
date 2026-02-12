@@ -127,3 +127,27 @@ export async function consumePendingItems(budgetMinutes: number): Promise<Consum
 export async function pruneOldItems(): Promise<{ deleted: number; stripped: number }> {
   return invoke<[number, number]>("prune_old_items").then(([deleted, stripped]) => ({ deleted, stripped }));
 }
+
+export async function getLastActiveTimestamp(): Promise<number> {
+  return invoke<number>("get_last_active_timestamp");
+}
+
+export async function setLastActiveTimestamp(timestamp: number): Promise<void> {
+  return invoke<void>("set_last_active_timestamp", { timestamp });
+}
+
+export async function onAndroidAppBackground(): Promise<void> {
+  if (isAndroid()) {
+    return invoke<void>("on_android_app_background");
+  }
+}
+
+export async function onAndroidAppForeground(): Promise<void> {
+  if (isAndroid()) {
+    return invoke<void>("on_android_app_foreground");
+  }
+}
+
+function isAndroid(): boolean {
+  return navigator.userAgent.includes('Android');
+}

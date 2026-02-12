@@ -15,7 +15,7 @@ type View = "idle" | "summary" | "detail";
 
 function getDoomscrollDurationMs(level: number): number {
   // Scroll duration: 1→5 min linearly
-  // Formula: S(level) = 1 + 4 × (level-1)/9
+  // Formula: S(level) = 1 + 4 × (level-1)/8
   const scrollMinutes = 1 + 4 * ((level - 1) / 8);
   return scrollMinutes * 60 * 1000;
 }

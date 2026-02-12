@@ -94,3 +94,19 @@ pub fn prune_old_items(db: State<'_, Arc<Database>>) -> Result<(i64, i64), Strin
 pub fn get_pending_count(db: State<'_, Arc<Database>>) -> Result<i64, String> {
     db.get_pending_count().map_err(|e| e.to_string())
 }
+
+#[tauri::command]
+pub fn get_last_active_timestamp(db: State<'_, Arc<Database>>) -> Result<i64, String> {
+    let timestamp = db.get_last_active_timestamp().map_err(|e| e.to_string())?;
+    Ok(timestamp.timestamp_millis())
+}
+
+#[tauri::command]
+pub fn set_last_active_timestamp(
+    db: State<'_, Arc<Database>>,
+    timestamp: i64,
+) -> Result<(), String> {
+    let datetime = chrono::DateTime::from_timestamp_millis(timestamp).ok_or("Invalid timestamp")?;
+    db.set_last_active_timestamp(datetime)
+        .map_err(|e| e.to_string())
+}

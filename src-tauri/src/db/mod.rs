@@ -43,6 +43,9 @@ impl Database {
             [],
         )?;
 
+        // Run migration 003 for app_state table
+        conn.execute_batch(include_str!("../../migrations/003_add_app_state.sql"))?;
+
         Ok(())
     }
 
@@ -306,5 +309,41 @@ impl Database {
         )?;
 
         Ok((deleted as i64, stripped as i64))
+    }
+
+    pub fn get_last_active_timestamp(&self) -> SqlResult<chrono::DateTime<chrono::Utc>> {
+        let conn = self.conn.lock().unwrap();
+
+        // Try to get from app_state table first
+        let result: Option<i64> = conn
+            .query_row(
+                "SELECT value FROM app_state WHERE key = 'last_active_timestamp'",
+                [],
+                |row| row.get(0),
+            )
+            .ok();
+
+        if let Some(timestamp) = result {
+            Ok(chrono::DateTime::from_timestamp_millis(timestamp)
+                .unwrap_or_else(|| chrono::Utc::now()))
+        } else {
+            // Return current time if not set
+            Ok(chrono::Utc::now())
+        }
+    }
+
+    pub fn set_last_active_timestamp(
+        &self,
+        timestamp: chrono::DateTime<chrono::Utc>,
+    ) -> SqlResult<()> {
+        let conn = self.conn.lock().unwrap();
+        let timestamp_millis = timestamp.timestamp_millis();
+
+        conn.execute(
+            "INSERT OR REPLACE INTO app_state (key, value) VALUES ('last_active_timestamp', ?1)",
+            rusqlite::params![timestamp_millis],
+        )?;
+
+        Ok(())
     }
 }

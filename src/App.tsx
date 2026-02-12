@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { useAppStore } from "./stores/appStore";
 import { useNotifications } from "./hooks/useNotifications";
+import { useAppLifecycle } from "./hooks/useAppLifecycle";
 import { Toast } from "./components/Toast";
 import { HoverPreview } from "./components/HoverPreview";
 import { IdleView } from "./components/IdleView";
@@ -10,6 +11,7 @@ import { getThrottleLevel } from "./lib/tauri";
 
 function App() {
   useNotifications();
+  useAppLifecycle();
   const view = useAppStore((s) => s.view);
   const setThrottleLevel = useAppStore((s) => s.setThrottleLevel);
 
