@@ -152,6 +152,23 @@ To install on your device:
 adb install path/to/cazzmachine-signed.apk
 ```
 
+#### APK Signing
+
+The built APK is unsigned and must be signed before distribution. Use your keystore:
+
+```bash
+# Sign the APK (replace with your keystore details)
+jarsigner -keystore /path/to/your/keystore.jks \
+  -signedjar cazzmachine-signed.apk \
+  app-universal-release-unsigned.apk \
+  your-alias-name
+
+# Install on device
+adb install cazzmachine-signed.apk
+```
+
+**Important:** The signed APK (`cazzmachine-signed.apk`) in the repository root must be kept up to date for GitHub releases.
+
 ## Project Structure
 
 ```
