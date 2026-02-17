@@ -9,6 +9,7 @@
     "notification:allow-request-permission",
     "notification:allow-notify",
     "shell:allow-open",
-    "http:default"
+    "http:default",
+    "app-events:default"
   ]
 }

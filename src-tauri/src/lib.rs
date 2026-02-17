@@ -16,10 +16,20 @@ use tokio::sync::watch;
 pub fn run() {
     let (shutdown_tx, shutdown_rx) = watch::channel(false);
 
-    tauri::Builder::default()
+    #[cfg(mobile)]
+    let builder = tauri::Builder::default()
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_http::init())
+        .plugin(tauri_plugin_app_events::init());
+
+    #[cfg(not(mobile))]
+    let builder = tauri::Builder::default()
+        .plugin(tauri_plugin_notification::init())
+        .plugin(tauri_plugin_shell::init())
+        .plugin(tauri_plugin_http::init());
+
+    builder
         .setup(move |app| {
             let app_dir = app
                 .path()

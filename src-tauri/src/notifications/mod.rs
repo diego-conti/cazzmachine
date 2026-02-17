@@ -6,6 +6,8 @@ use tokio::sync::watch;
 
 use crate::commands::THROTTLE_LEVEL;
 use crate::db::Database;
+#[cfg(target_os = "android")]
+use crate::shared::lifecycle_manager::LifecycleManager;
 use templates::generate_teaser;
 
 pub struct NotificationEngine {
@@ -63,6 +65,14 @@ impl NotificationEngine {
     }
 
     async fn send_teaser(&self, app_handle: &tauri::AppHandle) {
+        #[cfg(target_os = "android")]
+        {
+            if LifecycleManager::is_background_mode() {
+                let _ = self.db.log_diagnostic_event("notification_engine", "debug", "Skipping notification: app is in background", None, None);
+                return;
+            }
+        }
+
         let stats = match self.db.get_today_stats() {
             Ok(s) => s,
             Err(e) => {

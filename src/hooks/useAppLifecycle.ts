@@ -1,6 +1,7 @@
 import { useEffect, useCallback } from 'react';
 import { useAppStore } from '../stores/appStore';
-import { getLastActiveTimestamp, setLastActiveTimestamp, onAndroidAppBackground, consumePendingItems, type ConsumeResult, logDiagnostic, isAndroid } from '../lib/tauri';
+import { getLastActiveTimestamp, setLastActiveTimestamp, consumePendingItems, type ConsumeResult, logDiagnostic, isAndroid } from '../lib/tauri';
+import { onResume, onPause } from 'tauri-plugin-app-events-api';
 
 export function useAppLifecycle() {
   const {
@@ -51,25 +52,25 @@ export function useAppLifecycle() {
       await setLastActiveTimestamp(now);
 
       clearStatusTimer();
-
-      if (isAndroid()) {
-        await onAndroidAppBackground();
-      }
     } catch (error) {
       void logDiagnostic("app_background_error", "error", "Failed to handle app background", { error: String(error) });
     }
   }, [clearStatusTimer]);
 
   useEffect(() => {
-    const handleVisibilityChange = async () => {
-      if (document.visibilityState === 'visible') {
-        await handleAppResume();
-      } else {
-        await handleAppBackground();
-      }
-    };
-
-    document.addEventListener('visibilitychange', handleVisibilityChange);
+    if (!isAndroid()) {
+      const handleVisibilityChange = async () => {
+        if (document.visibilityState === 'visible') {
+          await handleAppResume();
+        } else {
+          await handleAppBackground();
+        }
+      };
+      document.addEventListener('visibilitychange', handleVisibilityChange);
+      return () => {
+        document.removeEventListener('visibilitychange', handleVisibilityChange);
+      };
+    }
 
     const setup = async () => {
       try {
@@ -81,8 +82,12 @@ export function useAppLifecycle() {
 
     setup();
 
+    onResume(handleAppResume);
+    onPause(handleAppBackground);
+
     return () => {
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      onResume(() => {});
+      onPause(() => {});
     };
   }, [handleAppResume, handleAppBackground]);
 }
