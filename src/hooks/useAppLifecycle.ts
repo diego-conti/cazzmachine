@@ -5,77 +5,62 @@ import { getLastActiveTimestamp, setLastActiveTimestamp, onAndroidAppBackground,
 export function useAppLifecycle() {
   const {
     threadCount,
-    toggleSystemStatus,
+    clearStatusTimer,
     setToastMessage
   } = useAppStore();
 
   const handleAppResume = useCallback(async () => {
     try {
-      // Get last active timestamp
       const lastActive = await getLastActiveTimestamp();
       const now = Date.now();
       const elapsedMinutes = (now - lastActive) / 60000;
 
       const state = useAppStore.getState();
-      void logDiagnostic("doomscroll_trigger", "info", "App resume triggered doomscrolling", {
+      void logDiagnostic("doomscroll_trigger", "info", "App resume consumption", {
         source: "app_resume",
         currentStatus: state.systemStatus,
         isFirstRun: state.isFirstRun,
-        doomscrollingEnabledAt: state.doomscrollingEnabledAt,
         elapsedSinceLastActive: elapsedMinutes,
       });
 
-      // Update last active timestamp
       await setLastActiveTimestamp(now);
 
-      // Skip if less than 1 minute has passed
       if (elapsedMinutes < 1) {
         return;
       }
 
-      // Calculate consumption based on elapsed time
-      // Formula: budget = elapsed_minutes × items_per_minute × thread_count
-      // We need to convert elapsed time to consumption budget
       const budgetMinutes = elapsedMinutes * threadCount;
 
-      // Consume all accumulated items
       const result = await consumePendingItems(budgetMinutes);
 
-      // Show notification for accumulated consumption
       if (result.items_consumed > 0) {
         const msg = formatResumeMessage(result);
         setToastMessage(msg);
         setTimeout(() => setToastMessage(null), 8000);
       }
 
-      const currentStatus = useAppStore.getState().systemStatus;
-      if (currentStatus !== "doomscrolling") {
-        toggleSystemStatus();
-      }
-
       void logDiagnostic("app_resume", "info", `App resume: consumed ${result.items_consumed} items`, { elapsedMinutes: elapsedMinutes.toFixed(1) });
     } catch (error) {
       void logDiagnostic("app_resume_error", "error", "Failed to handle app resume", { error: String(error) });
     }
-  }, [threadCount, toggleSystemStatus, setToastMessage]);
+  }, [threadCount, setToastMessage]);
 
   const handleAppBackground = useCallback(async () => {
     try {
-      // Update last active timestamp
       const now = Date.now();
       await setLastActiveTimestamp(now);
 
-      // Notify backend (Android only)
+      clearStatusTimer();
+
       if (isAndroid()) {
         await onAndroidAppBackground();
       }
     } catch (error) {
       void logDiagnostic("app_background_error", "error", "Failed to handle app background", { error: String(error) });
     }
-  }, []);
+  }, [clearStatusTimer]);
 
   useEffect(() => {
-    // Set up lifecycle listeners
     const handleVisibilityChange = async () => {
       if (document.visibilityState === 'visible') {
         await handleAppResume();
@@ -86,13 +71,10 @@ export function useAppLifecycle() {
 
     document.addEventListener('visibilitychange', handleVisibilityChange);
 
-    // Initial setup
     const setup = async () => {
-      // Ensure last active timestamp is set
       try {
         await getLastActiveTimestamp();
       } catch {
-        // First run, set initial timestamp
         await setLastActiveTimestamp(Date.now());
       }
     };
