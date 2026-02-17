@@ -11,7 +11,11 @@ const categoryEmojis: Record<string, string> = {
   gossip: "💅",
 };
 
-export function IdleView() {
+interface IdleViewProps {
+  onShowDiagnostics?: () => void;
+}
+
+export function IdleView({ onShowDiagnostics }: IdleViewProps) {
   const fetchSummary = useAppStore((s) => s.fetchSummary);
   const peekItems = useAppStore((s) => s.peekItems);
   const stats = useCrawlStats();
@@ -31,10 +35,11 @@ export function IdleView() {
   return (
     <div className="animate-fade-in flex flex-col items-center justify-center min-h-[80vh] space-y-8">
       <div className="text-center space-y-4">
-        <img 
-          src="/doomscrolling.png" 
-          alt="doomscrolling" 
-          className="w-48 h-48 mx-auto drop-shadow-2xl"
+        <img
+          src="/doomscrolling.png"
+          alt="doomscrolling"
+          className="w-48 h-48 mx-auto drop-shadow-2xl cursor-pointer hover:opacity-80 transition-opacity"
+          onClick={onShowDiagnostics}
         />
         <h1 className="text-3xl font-black tracking-tighter text-cazz-text uppercase italic">
           cazzmachine
@@ -127,7 +132,7 @@ export function IdleView() {
         </div>
       </div>
 
-      <div className="flex flex-col items-center gap-4 w-full max-w-sm">
+      <div className="flex flex-col items-center gap-4 w-full max-w-sm pb-20">
         <button
           onClick={fetchSummary}
           className="w-full py-4 bg-cazz-accent text-white rounded-xl text-xs font-mono font-bold uppercase tracking-[0.2em] hover:bg-cazz-accent/90 transition-all active:scale-[0.98] shadow-lg shadow-cazz-accent/20"

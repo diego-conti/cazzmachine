@@ -9,7 +9,7 @@ export function DetailView() {
   const setIsDoneWorking = useAppStore((s) => s.setIsDoneWorking);
 
   return (
-    <div className="animate-fade-in space-y-4">
+    <div className="animate-fade-in space-y-4 pb-20">
       <div className="flex items-center justify-between border-b border-cazz-border pb-2">
         <div>
           <h2 className="text-xl font-bold tracking-tighter text-cazz-text uppercase italic">

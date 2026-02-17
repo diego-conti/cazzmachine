@@ -27,30 +27,29 @@ impl ContentProvider for DadJokeProvider {
     async fn fetch(&self, client: &reqwest::Client) -> Vec<FetchedItem> {
         let topics = ["work", "computer", "office", "coffee", "cat", "dog", "food", "money"];
         let topic = topics[rand::random::<usize>() % topics.len()];
+        let url = format!("https://icanhazdadjoke.com/search?term={}&limit=5", topic);
 
         let response = match client
-            .get(format!("https://icanhazdadjoke.com/search?term={}&limit=5", topic))
+            .get(&url)
             .header("Accept", "application/json")
             .header("User-Agent", "cazzmachine/0.1.0")
             .send()
             .await
         {
             Ok(r) => r,
-            Err(e) => {
-                log::warn!("DadJoke fetch failed: {}", e);
-                return vec![];
-            }
+            Err(_) => return vec![],
         };
+
+        if !response.status().is_success() {
+            return vec![];
+        }
 
         let search: DadJokeSearchResponse = match response.json().await {
             Ok(s) => s,
-            Err(e) => {
-                log::warn!("DadJoke parse failed: {}", e);
-                return vec![];
-            }
+            Err(_) => return vec![],
         };
 
-        search
+        let items: Vec<FetchedItem> = search
             .results
             .into_iter()
             .map(|joke| FetchedItem {
@@ -59,8 +58,11 @@ impl ContentProvider for DadJokeProvider {
                 title: joke.joke.clone(),
                 url: format!("https://icanhazdadjoke.com/j/{}", joke.id),
                 thumbnail_url: None,
+                thumbnail_data: None,
                 description: Some(joke.joke),
             })
-            .collect()
+            .collect();
+
+        items
     }
 }

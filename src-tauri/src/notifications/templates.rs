@@ -59,7 +59,7 @@ pub fn generate_teaser(stats: &DayStats, latest: Option<&CrawlItem>) -> String {
         )],
     };
 
-    let general_teasers = vec![
+    let general_teasers = [
         format!(
             "I've found {} things today. {} memes, {} jokes. You can binge later.",
             stats.total_items, stats.memes_found, stats.jokes_found

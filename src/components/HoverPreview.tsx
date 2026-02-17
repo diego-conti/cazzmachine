@@ -1,21 +1,34 @@
 import { useAppStore } from "../stores/appStore";
 import { openUrl } from "../lib/tauri";
+import { useThumbnailUrl } from "../hooks/useThumbnailUrl";
+import { useHoverTimeout } from "../hooks/useHoverTimeout";
 
 export function HoverPreview() {
   const hoveredItem = useAppStore((s) => s.hoveredItem);
   const isDoneWorking = useAppStore((s) => s.isDoneWorking);
   const setHoveredItem = useAppStore((s) => s.setHoveredItem);
   const clearHoverTimeout = useAppStore((s) => s.clearHoverTimeout);
+  const setHoverTimeout = useAppStore((s) => s.setHoverTimeout);
+  const imageUrl = useThumbnailUrl(
+    hoveredItem?.thumbnail_data,
+    hoveredItem?.thumbnail_url,
+    { onError: 'null' }
+  );
 
   if (!hoveredItem || !isDoneWorking) return null;
 
-  const handleMouseEnter = () => {
-    clearHoverTimeout();
-  };
-
-  const handleMouseLeave = () => {
-    setHoveredItem(null);
-  };
+  const { handleMouseEnter, handleMouseLeave } = useHoverTimeout(
+    clearHoverTimeout,
+    setHoverTimeout,
+    setHoveredItem,
+    {
+      timeoutMs: 200,
+      selectors: {
+        item: '.flex.gap-4.p-3',
+        preview: '.preview-content'
+      }
+    }
+  );
 
   const handleOpen = () => {
     openUrl(hoveredItem.url);
@@ -27,11 +40,13 @@ export function HoverPreview() {
   return (
     <div
       className="fixed inset-x-0 bottom-0 z-40 animate-slide-up px-4 pb-4 cursor-pointer"
-      onMouseEnter={handleMouseEnter}
-      onMouseLeave={handleMouseLeave}
       onClick={handleOpen}
     >
-      <div className="bg-cazz-surface border-2 border-dashed border-cazz-accent shadow-2xl max-w-2xl mx-auto overflow-hidden">
+      <div 
+        className="preview-content bg-cazz-surface border-2 border-dashed border-cazz-accent shadow-2xl max-w-2xl mx-auto overflow-hidden"
+        onMouseEnter={handleMouseEnter}
+        onMouseLeave={handleMouseLeave}
+      >
         <div className="bg-cazz-accent/10 border-b border-dashed border-cazz-accent/30 px-3 py-1 flex justify-between items-center">
           <span className="text-[10px] font-mono font-bold text-cazz-accent uppercase tracking-widest">
             [PREVIEW_TERMINAL // CAT:{hoveredItem.category.toUpperCase()}]
@@ -54,18 +69,20 @@ export function HoverPreview() {
           )}
 
           {/* Memes: large image */}
-          {hoveredItem.category === "meme" && hoveredItem.thumbnail_url && (
+          {hoveredItem.category === "meme" && (
             <div className="text-center">
-              <div className="inline-block border border-cazz-border p-1 bg-black mb-3">
-                <img
-                  src={hoveredItem.thumbnail_url}
-                  alt={hoveredItem.title}
-                  className="max-h-64 w-auto grayscale-0"
-                  onError={(e) => {
-                    (e.target as HTMLImageElement).style.display = "none";
-                  }}
-                />
-              </div>
+              {imageUrl && (
+                <div className="inline-block border border-cazz-border p-1 bg-black mb-3">
+                  <img
+                    src={imageUrl}
+                    alt={hoveredItem.title}
+                    className="max-h-64 w-auto grayscale-0"
+                    onError={(e) => {
+                      (e.target as HTMLImageElement).style.display = "none";
+                    }}
+                  />
+                </div>
+              )}
               {showTitle && hoveredItem.title && (
                 <p className="text-cazz-text font-mono text-sm uppercase tracking-tight">{hoveredItem.title}</p>
               )}
@@ -79,10 +96,10 @@ export function HoverPreview() {
           {/* News: image + text */}
           {hoveredItem.category === "news" && (
             <div className="flex gap-6">
-              {hoveredItem.thumbnail_url && (
+              {imageUrl && (
                 <div className="flex-shrink-0 border border-cazz-border p-1 bg-black h-fit">
                   <img
-                    src={hoveredItem.thumbnail_url}
+                    src={imageUrl}
                     alt={hoveredItem.title}
                     className="w-40 h-32 object-cover"
                     onError={(e) => {
@@ -109,10 +126,10 @@ export function HoverPreview() {
           {/* Videos: thumbnail + title */}
           {hoveredItem.category === "video" && (
             <div className="flex gap-6">
-              {hoveredItem.thumbnail_url && (
+              {imageUrl && (
                 <div className="flex-shrink-0 border border-cazz-border p-1 bg-black h-fit">
                   <img
-                    src={hoveredItem.thumbnail_url}
+                    src={imageUrl}
                     alt={hoveredItem.title}
                     className="w-40 h-24 object-cover"
                     onError={(e) => {

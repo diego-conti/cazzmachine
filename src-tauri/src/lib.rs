@@ -1,8 +1,12 @@
 mod commands;
-mod crawler;
-mod db;
+pub mod crawler;
+pub mod db;
 mod notifications;
 mod summary;
+#[cfg(target_os = "android")] mod shared;
+
+#[cfg(target_os = "android")]
+mod android;
 
 use std::sync::Arc;
 use tauri::Manager;
@@ -10,13 +14,12 @@ use tokio::sync::watch;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    env_logger::init();
-
     let (shutdown_tx, shutdown_rx) = watch::channel(false);
 
     tauri::Builder::default()
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_shell::init())
+        .plugin(tauri_plugin_http::init())
         .setup(move |app| {
             let app_dir = app
                 .path()
@@ -26,32 +29,29 @@ pub fn run() {
             let database =
                 Arc::new(db::Database::new(app_dir).expect("failed to initialize database"));
 
+            // Clear diagnostic logs from previous sessions on startup
+            let _ = database.clear_diagnostics(0);
+
             app.manage(database.clone());
 
-            // Send startup notification after 2 seconds
-            let startup_handle = app.handle().clone();
-            tauri::async_runtime::spawn(async move {
-                tokio::time::sleep(std::time::Duration::from_secs(2)).await;
-                let _ = tauri::Emitter::emit(&startup_handle, "cazz-notification", "Cazzmachine ready. Go back to work; I've got your doomscrolling covered");
-            });
-
-            let crawler_db = database.clone();
-            let crawler_shutdown = shutdown_rx.clone();
             let notif_db = database.clone();
             let notif_shutdown = shutdown_rx.clone();
             let app_handle = app.handle().clone();
-
             tauri::async_runtime::spawn(async move {
-                let scheduler =
-                    crawler::CrawlScheduler::new(crawler_db, crawler_shutdown);
-                scheduler.run().await;
-            });
-
-            tauri::async_runtime::spawn(async move {
-                let engine =
-                    notifications::NotificationEngine::new(notif_db, notif_shutdown);
+                let engine = notifications::NotificationEngine::new(notif_db, notif_shutdown);
                 engine.run(app_handle).await;
             });
+
+            #[cfg(target_os = "android")]
+            {
+                let bg_db = database.clone();
+                let bg_shutdown = shutdown_rx.clone();
+
+                tauri::async_runtime::spawn(async move {
+                    let service = android::background_service::AndroidBackgroundService::new(bg_db, bg_shutdown);
+                    service.run().await;
+                });
+            }
 
             Ok(())
         })
@@ -75,6 +75,19 @@ pub fn run() {
             commands::set_consumption_threads,
             commands::get_pending_count,
             commands::prune_old_items,
+            commands::get_last_active_timestamp,
+            commands::set_last_active_timestamp,
+            commands::get_diagnostic_summary,
+            commands::get_provider_status,
+            commands::get_recent_diagnostics,
+            commands::clear_diagnostics,
+            commands::trigger_crawl,
+            commands::log_diagnostic,
+            commands::fetch_image,
+            #[cfg(target_os = "android")]
+            android::on_android_app_background,
+            #[cfg(target_os = "android")]
+            android::on_android_app_foreground,
         ])
         .run(tauri::generate_context!())
         .expect("error while running cazzmachine");

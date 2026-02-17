@@ -71,6 +71,17 @@ struct RedditPost {
     stickied: bool,
     #[serde(default)]
     is_self: bool,
+    #[serde(default)]
+    preview: serde_json::Value,
+}
+
+fn get_preview_image_url(post: &RedditPost) -> Option<String> {
+    let preview = post.preview.get("images")?;
+    let images = preview.as_array()?;
+    let first = images.first()?;
+    let source = first.get("source")?;
+    let url = source.get("url")?;
+    url.as_str().map(|s| s.to_string())
 }
 
 #[async_trait::async_trait]
@@ -89,56 +100,48 @@ impl ContentProvider for RedditProvider {
             self.subreddit
         );
 
-        let response = match client
-            .get(&url)
-            .header("User-Agent", "cazzmachine/0.1.0")
-            .send()
-            .await
-        {
-            Ok(r) => r,
-            Err(e) => {
-                log::warn!("Reddit fetch failed for r/{}: {}", self.subreddit, e);
-                return vec![];
-            }
-        };
-
-        let listing: RedditListing = match response.json().await {
+        let listing: RedditListing = match super::util::fetch_json(client, &url).await {
             Ok(l) => l,
-            Err(e) => {
-                log::warn!("Reddit parse failed for r/{}: {}", self.subreddit, e);
-                return vec![];
-            }
+            Err(_) => return vec![],
         };
 
-        listing
-            .data
-            .children
-            .into_iter()
-            .filter(|c| !c.data.over_18 && !c.data.stickied)
-            .take(8)
-            .map(|c| {
-                let post = c.data;
-                let thumbnail = if !post.is_self && is_image_url(&post.url) {
-                    Some(post.url.clone())
-                } else if post.thumbnail.starts_with("http") && post.thumbnail != "default" && post.thumbnail != "self" && post.thumbnail != "nsfw" {
-                    Some(post.thumbnail)
-                } else {
-                    None
-                };
-                let description = if post.selftext.is_empty() {
-                    None
-                } else {
-                    Some(post.selftext.chars().take(200).collect())
-                };
-                FetchedItem {
-                    source: format!("r/{}", self.subreddit),
-                    category: self.category.clone(),
-                    title: post.title,
-                    url: format!("https://reddit.com{}", post.permalink),
-                    thumbnail_url: thumbnail,
-                    description,
-                }
-            })
-            .collect()
+        let mut items = Vec::new();
+        for c in listing.data.children.into_iter().take(8) {
+            if c.data.over_18 || c.data.stickied {
+                continue;
+            }
+            let post = c.data;
+            let thumbnail = if !post.is_self && is_image_url(&post.url) {
+                Some(post.url.clone())
+            } else if post.thumbnail.starts_with("http") && post.thumbnail != "default" && post.thumbnail != "self" && post.thumbnail != "nsfw" {
+                Some(post.thumbnail.clone())
+            } else {
+                get_preview_image_url(&post)
+            };
+
+            let thumbnail_data = if let Some(ref url) = thumbnail {
+                super::util::download_image(client, url).await
+            } else {
+                None
+            };
+
+            let description = if post.selftext.is_empty() {
+                None
+            } else {
+                Some(post.selftext.chars().take(200).collect())
+            };
+
+            items.push(FetchedItem {
+                source: format!("r/{}", self.subreddit),
+                category: self.category.clone(),
+                title: post.title,
+                url: format!("https://reddit.com{}", post.permalink),
+                thumbnail_url: thumbnail,
+                thumbnail_data,
+                description,
+            });
+        }
+
+        items
     }
 }

@@ -45,57 +45,49 @@ impl ContentProvider for RedditVideoProvider {
     }
 
     async fn fetch(&self, client: &reqwest::Client) -> Vec<FetchedItem> {
-        let subreddits = ["videos", "aww", "AnimalsBeingDerps", "Unexpected"];
+        let subreddits = [
+            "videos", "Unexpected", "WhatCouldGoWrong", "ContagiousLaughter",
+            "WinStupidPrizes", "IdiotsInCars", "InstantKarma", "JusticeServed",
+            "PublicFreakout", "StreetFights", "TikTokCringe", "facepalm",
+            "AnimalsBeingDerps", "aww", "punny", "me_irl"
+        ];
         let sub = subreddits[rand::random::<usize>() % subreddits.len()];
-        let url = format!("https://www.reddit.com/r/{}/hot.json?limit=15", sub);
+        let url = format!("https://www.reddit.com/r/{}/hot.json?limit=25", sub);
 
-        let response = match client
-            .get(&url)
-            .header("User-Agent", "cazzmachine/0.1.0")
-            .send()
-            .await
-        {
-            Ok(r) => r,
-            Err(e) => {
-                log::warn!("Video fetch failed for r/{}: {}", sub, e);
-                return vec![];
-            }
-        };
-
-        let listing: RedditListing = match response.json().await {
+        let listing: RedditListing = match super::util::fetch_json(client, &url).await {
             Ok(l) => l,
-            Err(e) => {
-                log::warn!("Video parse failed for r/{}: {}", sub, e);
-                return vec![];
-            }
+            Err(_) => return vec![],
         };
 
-        listing
-            .data
-            .children
-            .into_iter()
-            .filter(|c| {
-                !c.data.over_18
-                    && !c.data.stickied
-                    && (c.data.is_video || c.data.url.contains("youtu"))
-            })
-            .take(5)
-            .map(|c| {
-                let post = c.data;
-                let thumb = if post.thumbnail.starts_with("http") {
-                    Some(post.thumbnail)
-                } else {
-                    None
-                };
-                FetchedItem {
-                    source: format!("r/{}", sub),
-                    category: "video".into(),
-                    title: post.title,
-                    url: format!("https://reddit.com{}", post.permalink),
-                    thumbnail_url: thumb,
-                    description: None,
-                }
-            })
-            .collect()
+        let mut items = Vec::new();
+        for c in listing.data.children.into_iter().take(5) {
+            if c.data.over_18 || c.data.stickied || (!c.data.is_video && !c.data.url.contains("youtu")) {
+                continue;
+            }
+            let post = c.data;
+            let thumb = if post.thumbnail.starts_with("http") {
+                Some(post.thumbnail.clone())
+            } else {
+                None
+            };
+
+            let thumbnail_data = if let Some(ref url) = thumb {
+                super::util::download_image(client, url).await
+            } else {
+                None
+            };
+
+            items.push(FetchedItem {
+                source: format!("r/{}", sub),
+                category: "video".into(),
+                title: post.title,
+                url: format!("https://reddit.com{}", post.permalink),
+                thumbnail_url: thumb,
+                thumbnail_data,
+                description: None,
+            });
+        }
+
+        items
     }
 }

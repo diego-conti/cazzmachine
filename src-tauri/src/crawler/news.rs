@@ -1,4 +1,5 @@
 use super::provider::{ContentProvider, FetchedItem};
+use super::util::{urlencoded, strip_html};
 use serde::Deserialize;
 
 pub struct GoogleNewsRssProvider;
@@ -33,28 +34,12 @@ impl ContentProvider for GoogleNewsRssProvider {
             urlencoded(rss_url)
         );
 
-        let response = match client
-            .get(&rss_to_json)
-            .header("User-Agent", "cazzmachine/0.1.0")
-            .send()
-            .await
-        {
+        let rss: RssResponse = match super::util::fetch_json(client, &rss_to_json).await {
             Ok(r) => r,
-            Err(e) => {
-                log::warn!("News RSS fetch failed: {}", e);
-                return vec![];
-            }
+            Err(_) => return vec![],
         };
 
-        let rss: RssResponse = match response.json().await {
-            Ok(r) => r,
-            Err(e) => {
-                log::warn!("News RSS parse failed: {}", e);
-                return vec![];
-            }
-        };
-
-        rss.items
+        let items: Vec<FetchedItem> = rss.items
             .into_iter()
             .take(8)
             .map(|item| {
@@ -69,27 +54,13 @@ impl ContentProvider for GoogleNewsRssProvider {
                     title: item.title,
                     url: item.link,
                     thumbnail_url: None,
+                    thumbnail_data: None,
                     description: desc,
                 }
             })
-            .collect()
+            .collect();
+
+        items
     }
 }
 
-fn urlencoded(s: &str) -> String {
-    s.replace(':', "%3A").replace('/', "%2F").replace('?', "%3F").replace('=', "%3D").replace('&', "%26")
-}
-
-fn strip_html(s: &str) -> String {
-    let mut result = String::new();
-    let mut in_tag = false;
-    for c in s.chars() {
-        match c {
-            '<' => in_tag = true,
-            '>' => in_tag = false,
-            _ if !in_tag => result.push(c),
-            _ => {}
-        }
-    }
-    result
-}

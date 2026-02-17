@@ -6,13 +6,13 @@ pub struct FetchedItem {
     pub title: String,
     pub url: String,
     pub thumbnail_url: Option<String>,
+    pub thumbnail_data: Option<String>,
     pub description: Option<String>,
 }
 
 impl FetchedItem {
     pub fn into_crawl_item(self) -> CrawlItem {
         let now = chrono::Local::now();
-        // Generate stable ID from URL to prevent duplicates across days
         let id = generate_stable_id(&self.url);
         CrawlItem {
             id,
@@ -21,6 +21,7 @@ impl FetchedItem {
             title: self.title,
             url: self.url,
             thumbnail_url: self.thumbnail_url,
+            thumbnail_data: self.thumbnail_data,
             description: self.description,
             fetched_at: now.format("%Y-%m-%d %H:%M:%S").to_string(),
             is_seen: false,
@@ -41,6 +42,7 @@ fn generate_stable_id(url: &str) -> String {
 }
 
 #[async_trait::async_trait]
+#[allow(dead_code)]
 pub trait ContentProvider: Send + Sync {
     fn name(&self) -> &str;
     fn category(&self) -> &str;

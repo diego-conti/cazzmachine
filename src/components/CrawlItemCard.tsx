@@ -2,6 +2,8 @@ import type { CrawlItem } from "../lib/tauri";
 import { toggleSaveItem, openUrl } from "../lib/tauri";
 import { useState } from "react";
 import { useAppStore } from "../stores/appStore";
+import { useHoverTimeout } from "../hooks/useHoverTimeout";
+import { useThumbnailUrl } from "../hooks/useThumbnailUrl";
 
 function timeAgo(dateStr: string): string {
   const now = new Date();
@@ -20,6 +22,7 @@ interface Props {
 
 export function CrawlItemCard({ item }: Props) {
   const [saved, setSaved] = useState(item.is_saved);
+  const imageUrl = useThumbnailUrl(item.thumbnail_data, item.thumbnail_url, { onError: 'silent' });
   const isDoneWorking = useAppStore((s) => s.isDoneWorking);
   const hoveredItem = useAppStore((s) => s.hoveredItem);
   const setHoveredItem = useAppStore((s) => s.setHoveredItem);
@@ -42,20 +45,23 @@ export function CrawlItemCard({ item }: Props) {
     }
   };
 
-  const handleMouseEnter = () => {
-    clearHoverTimeout();
-    if (isDoneWorking) {
-      setHoveredItem(item);
+  const { handleMouseEnter, handleMouseLeave } = useHoverTimeout(
+    clearHoverTimeout,
+    setHoverTimeout,
+    setHoveredItem,
+    {
+      timeoutMs: 200,
+      onMouseEnter: () => {
+        if (isDoneWorking) {
+          setHoveredItem(item);
+        }
+      },
+      selectors: {
+        item: '.flex.gap-4.p-3',
+        preview: '.preview-content'
+      }
     }
-  };
-
-  const handleMouseLeave = () => {
-    const timeout = setTimeout(() => {
-      setHoveredItem(null);
-      setHoverTimeout(null);
-    }, 200);
-    setHoverTimeout(timeout);
-  };
+  );
 
   return (
     <div
@@ -71,10 +77,10 @@ export function CrawlItemCard({ item }: Props) {
       `}
     >
       <div className="flex gap-4 p-3 relative z-10">
-        {item.thumbnail_url && (
+        {imageUrl && (
           <div className="flex-shrink-0 w-16 h-16 border border-cazz-border bg-black grayscale group-hover:grayscale-0 transition-all">
             <img
-              src={item.thumbnail_url}
+              src={imageUrl}
               alt=""
               className="w-full h-full object-cover opacity-80 group-hover:opacity-100"
               loading="lazy"

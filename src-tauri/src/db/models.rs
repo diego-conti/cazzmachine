@@ -8,6 +8,7 @@ pub struct CrawlItem {
     pub title: String,
     pub url: String,
     pub thumbnail_url: Option<String>,
+    pub thumbnail_data: Option<String>,
     pub description: Option<String>,
     pub fetched_at: String,
     pub is_seen: bool,
@@ -44,4 +45,44 @@ pub struct DaySummary {
     pub stats: DayStats,
     pub summary_text: String,
     pub highlights: Vec<CrawlItem>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DiagnosticLog {
+    pub id: String,
+    pub timestamp: String,
+    pub event_type: String,
+    pub severity: String,
+    pub message: String,
+    pub metadata: Option<String>,
+    pub related_item_id: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DiagnosticSummary {
+    pub pending_count: i64,
+    pub estimated_buffer_health: String,
+    pub budget_analysis: BudgetAnalysis,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct BudgetAnalysis {
+    pub min_cost_per_item: f64,
+    pub max_cost_per_item: f64,
+    pub estimated_buffer_minutes: f64,
+    pub total_pending_cost_minutes: f64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ProviderStatus {
+    pub provider_name: String,
+    pub category: String,
+    pub last_fetch_status: String,
+    pub last_fetch_timestamp: Option<String>,
+    pub recent_error_count: i64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ClearDiagnosticsResult {
+    pub deleted_count: i64,
 }

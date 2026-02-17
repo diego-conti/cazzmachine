@@ -152,6 +152,23 @@ To install on your device:
 adb install path/to/cazzmachine-signed.apk
 ```
 
+#### APK Signing
+
+The built APK is unsigned and must be signed before distribution. Use your keystore:
+
+```bash
+# Sign the APK (replace with your keystore details)
+jarsigner -keystore /path/to/your/keystore.jks \
+  -signedjar cazzmachine-signed.apk \
+  app-universal-release-unsigned.apk \
+  your-alias-name
+
+# Install on device
+adb install cazzmachine-signed.apk
+```
+
+**Important:** The signed APK (`cazzmachine-signed.apk`) in the repository root must be kept up to date for GitHub releases.
+
 ## Project Structure
 
 ```
@@ -183,6 +200,80 @@ The app stores data in:
 
 Database file: `cazzmachine.db`
 
+## Testing
+
+This project uses a multi-layered testing approach:
+
+### Unit Tests (Vitest)
+
+Run: `npm run test`
+
+Tests for pure functions and React components using Vitest.
+
+```
+__tests__/
+├── appStore.test.ts      # State management functions
+├── tauriCommands.test.ts # Tauri command wrappers
+└── urlOpening.test.ts   # URL handling logic
+```
+
+### Frontend E2E Tests (Playwright)
+
+Run: `npm run test:e2e`
+
+Tests the frontend in a browser using Playwright. Uses Vite dev server (no Tauri backend required).
+
+```
+e2e/
+├── app.spec.ts         # Main app UI tests
+├── navigation.spec.ts  # View navigation tests
+└── tauri.spec.ts      # Frontend/Tauri integration
+```
+
+### Full Tauri E2E Tests
+
+Run: `npm run test:e2e:tauri`
+
+Tests the complete application including the Tauri backend. Requires the full dev environment and takes longer to run.
+
+```
+e2e/
+└── tauri-full.spec.ts  # Full backend integration tests
+```
+
+### Rust Backend Tests
+
+Run: `npm run test:rust`
+
+Integration tests for the Rust backend, focusing on database operations and concurrency.
+
+```
+src-tauri/tests/
+└── db_tests.rs  # Database workflow tests
+```
+
+### Test Commands Summary
+
+| Command | Tests | Description |
+|---------|-------|-------------|
+| `npm run test` | 32 | Unit tests (Vitest) |
+| `npm run test:e2e` | 15 | Frontend E2E (Playwright + Vite) |
+| `npm run test:e2e:tauri` | 20 | Full E2E (Playwright + Tauri) |
+| `npm run test:rust` | 9 | Backend tests (Cargo) |
+| `npm run test:all` | 76 | All tests combined |
+
+### Running All Tests
+
+```bash
+# Run all tests
+npm run test:all
+
+# Or individually
+npm run test        # Unit tests
+npm run test:e2e   # Frontend E2E
+npm run test:rust  # Backend Rust
+```
+
 ## Consumption Costs
 
 Different content types have different "time costs":
@@ -196,6 +287,16 @@ Different content types have different "time costs":
 | Gossip | 1.5 |
 
 During a doomscrolling phase, items are consumed until the budget (phase duration) is exhausted. Each thread runs independently with staggered durations (from budget/2 to full budget). Unconsumed items remain in the buffer for future phases.
+
+### Crawling Behavior
+
+The Cazzmachine uses a **pre-emptive crawling strategy** to ensure items are available when needed:
+
+1. **At phase start**: If the buffer has fewer than `20 × thread_count` items, a crawl is triggered immediately to refill the buffer before consumption begins.
+2. **Background crawling**: The CrawlScheduler maintains the buffer by fetching content when it drops below 20 items per thread.
+3. **Provider rotation**: Each crawl fetches from a rotating selection of content providers (Reddit, news, jokes, memes, etc.).
+
+This ensures that doomscrolling phases have content available and minimizes "No content found" messages.
 
 ## Doomscroll Levels
 
@@ -221,6 +322,87 @@ Set 1-8 parallel "doomscrolling threads" to multiply your consumption power:
 - Buffer size scales automatically (20 items × thread count)
 - Heat map style thread selector with color-coded intensity levels
 - Perfect for maximum automated doomscrolling
+
+## Diagnostics
+
+The Cazzmachine includes a comprehensive diagnostic system to help troubleshoot issues, particularly the dreaded "No content found" message.
+
+### Understanding "No Content" Messages
+
+When you see "No content found. The internet is quiet... suspiciously quiet.", it means the consumption cycle completed without consuming any items. Common causes:
+
+| Cause | Explanation | Solution |
+|-------|-------------|----------|
+| **Empty Buffer** | No items waiting in the database | Wait for the crawler to fetch content (check provider health) |
+| **Budget Too Small** | Phase duration shorter than cheapest item (0.3 min) | Increase the doomscroll level knob |
+| **All Items Too Expensive** | Pending items cost more than available budget | Wait for cheaper items (jokes/memes) or increase budget |
+| **Provider Errors** | Crawlers failing to fetch content | Check provider status in diagnostic panel |
+
+### Diagnostic Panel
+
+Access the diagnostic panel for real-time system status:
+
+**Method 1: URL Flag**
+```
+http://localhost:5173/?diagnostics=true
+```
+
+**Method 2: Debug Mode**
+Enable debug mode in the browser console:
+```javascript
+useAppStore.setState({ debugMode: true })
+```
+
+The panel displays:
+- **System Status**: Pending item count, buffer health, budget analysis
+- **Provider Health**: Each content source's status, last fetch time, error counts
+- **Recent Events**: Diagnostic log entries with timestamps and severity
+- **Export**: Download full diagnostic data as JSON
+
+### Debug Mode
+
+Enable verbose logging to the browser console:
+
+```javascript
+// In browser console (F12)
+useAppStore.setState({ debugMode: true })
+```
+
+Debug mode logs:
+- State transitions (standby → doomscrolling → interrupted)
+- Thread launch/completion with budgets
+- Consumption results per thread
+- Fetch errors with context
+
+### Diagnostic Commands
+
+The following Tauri commands are available for programmatic access:
+
+| Command | Returns | Description |
+|---------|---------|-------------|
+| `get_diagnostic_summary()` | Pending count, buffer health, budget analysis | Overall system status |
+| `get_provider_status()` | Array of provider health objects | Per-provider status and errors |
+| `get_recent_diagnostics(limit)` | Array of diagnostic log entries | Recent events from database |
+| `clear_diagnostics(days)` | Count of deleted entries | Clean up old diagnostic logs |
+
+### Common Issues
+
+**"No content found" appears frequently**
+- Check provider health in diagnostic panel
+- Look for high error counts (red numbers)
+- Verify buffer health is "healthy" or "low"
+- Check recent diagnostic events for crawl failures
+
+**Providers show errors**
+- Network connectivity issues (NetworkError/TimeoutError)
+- Rate limiting from Reddit/APIs (RateLimitError)
+- Temporary service outages
+- Wait a few minutes and check again
+
+**Buffer health shows "critical"**
+- Crawler may be behind
+- Increase doomscroll level temporarily to allow more crawling
+- Check that at least one provider is healthy
 
 ## License
 
